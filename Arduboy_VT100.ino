@@ -8,7 +8,7 @@
 #include "st7565_font.h"
 
 Arduboy2 arduboy;
-BeepPin1 beep;
+BeepPin2 beep;
 
 #define UNDERLINE 4
 #define INVERSE 2
@@ -24,6 +24,7 @@ char text[BUFFERSIZE]; //Text buffer
 int cx,cy;
 unsigned char c;
 char cur_atr;
+volatile uint8_t cursorBlink;
 
 char blocking_read(){
   while(!Serial.available());
@@ -63,7 +64,7 @@ void handle_escape(){
       cy = ROWS-1;
     }
   }
-  else if(c == '(' || c == ')'){ // character set
+  else if(c == '(' || c == ')'){ //Character set
     c = blocking_read();
   }
   else if(c == '['){
@@ -80,19 +81,25 @@ void handle_escape(){
     }
     switch(c){
       case ';':
-        val2 = blocking_read() - '0';
         c = blocking_read();
         if(isdigit(c)){
-          val2 *= 10;
-          val2 += c - '0';
+          val2 = c - '0';
           c = blocking_read();
+          if(isdigit(c)){
+            val2 *= 10;
+            val2 += c - '0';
+            c = blocking_read();
+          }
         }
         if(c == 'f' || c == 'H'){ //Move cursor to screen location v,h
-          cy = val-1; cx = val2-1;
-          if(cx > (COLUMNS-1)){cx = COLUMNS-1;}
-          if(cx < 0){cx = 0;}
-          if(cy > (ROWS-1)){cy = ROWS-1;}
-          if(cy < 0){cy = 0;}
+          if(val == 255){cy = 0; cx = 0;}
+          else{
+            cy = val-1; cx = val2-1;
+            if(cx > (COLUMNS-1)){cx = COLUMNS-1;}
+            if(cx < 0){cx = 0;}
+            if(cy > (ROWS-1)){cy = ROWS-1;}
+            if(cy < 0){cy = 0;}
+          }
         }
         break;
       case 'A':cy-=(val==255)?1:val; if(cy < 0){cy = 0;} break; //Move cursor up n lines
@@ -176,9 +183,12 @@ void poll_serial(){ //We need to do this often to avoid dropping bytes in the ti
     }
     else if(c == '\r'){cx = 0;} //Carriage Return
     else if(c == '\t' && cx < (COLUMNS-9)){cx = cx+8;} //Tab
-    else if(c == 8 && cx > 0){cx--;} //Back Space
-    else if(c == 7){beep.tone(1116, 30);} //Bell (Play 895Hz tone)
-    else if(c > 31){
+    else if(c == 7){beep.tone(69, 30);} //Bell (Play 895Hz tone)
+    else if(c == 8 && cx > 0){ //Back Space
+      cx--;
+      text[(cy * COLUMNS) + cx] = 0x00;
+    }
+    else if(c > 31 && c < 127){ //ASCII printable characters
       text[(cy * COLUMNS) + cx] = c-32;
 //    attrib[(cy * (COLUMNS/2)) + cx/2] &= cx&1?0xF0:0x0F;
 //    attrib[(cy * (COLUMNS/2)) + cx/2] |= cx&1?cur_atr:cur_atr<<4;
@@ -191,24 +201,49 @@ void poll_serial(){ //We need to do this often to avoid dropping bytes in the ti
 void update_display(){
   uint8_t d;
   uint8_t i = 0;
+  uint8_t cursorPos = (cy * COLUMNS) + cx;
 
-  for(uint8_t n = 0; n < BUFFERSIZE; n++)
+  for (uint8_t n = 0; n < BUFFERSIZE; n++)
   {
-    SPDR = st7565_font[text[n]][i++]; // set the first SPI data byte to get things started
-
-    // the code to iterate the loop and get the next byte from the buffer is
-    // executed while the previous byte is being sent out by the SPI controller
-    while (i < 8)
+    if (n == cursorPos)
     {
-      // get the next byte. It's put in a local variable so it can be sent as
-      // as soon as possible after the sending of the previous byte has completed
-      d = st7565_font[text[n]][i++];
+      if (!cursorBlink) SPDR =   st7565_font[text[n]][i++]; // set the first SPI data byte to get things started
+      else              SPDR = ~(st7565_font[text[n]][i++]);
 
-      while (!(SPSR & _BV(SPIF))) { } // wait for the previous byte to be sent
+      // the code to iterate the loop and get the next byte from the buffer is
+      // executed while the previous byte is being sent out by the SPI controller
+      while (i < 8)
+      {
+        // get the next byte. It's put in a local variable so it can be sent as
+        // as soon as possible after the sending of the previous byte has completed
+        if (!cursorBlink) d =   st7565_font[text[n]][i++];
+        else              d = ~(st7565_font[text[n]][i++]);
 
-      // put the next byte in the SPI data register. The SPI controller will
-      // clock it out while the loop continues and gets the next byte ready
-      SPDR = d;
+        while (!(SPSR & _BV(SPIF))) { } // wait for the previous byte to be sent
+
+        // put the next byte in the SPI data register. The SPI controller will
+        // clock it out while the loop continues and gets the next byte ready
+        SPDR = d;
+      }
+    }
+    else
+    {
+      SPDR = st7565_font[text[n]][i++]; // set the first SPI data byte to get things started
+
+      // the code to iterate the loop and get the next byte from the buffer is
+      // executed while the previous byte is being sent out by the SPI controller
+      while (i < 8)
+      {
+        // get the next byte. It's put in a local variable so it can be sent as
+        // as soon as possible after the sending of the previous byte has completed
+        d = st7565_font[text[n]][i++];
+
+        while (!(SPSR & _BV(SPIF))) { } // wait for the previous byte to be sent
+
+        // put the next byte in the SPI data register. The SPI controller will
+        // clock it out while the loop continues and gets the next byte ready
+        SPDR = d;
+      }
     }
 
     i = 0;
@@ -217,11 +252,22 @@ void update_display(){
   }
 }
 
+ISR(TIMER3_COMPA_vect)
+{
+  cursorBlink ^= B00000001;
+}
+
 void setup(){
   arduboy.boot();
   arduboy.audio.begin();
   beep.begin();
   SPCR |= _BV(DORD); //LSB of the data word is transmitted first
+
+  //Set up Timer 3 for cursorBlink interrupt
+  TCCR3A = 0; //Normal operation
+  TCCR3B = _BV(WGM32) | _BV(CS30) | _BV(CS32); //CTC, scale to clock ÷ 1024
+  OCR3A = 8192; //Compare A register value
+  TIMSK3 = _BV(OCIE3A); //Interrupt on compare A match
 
   Serial.begin(9600);
   memset(text, 0x00, BUFFERSIZE);
@@ -230,7 +276,7 @@ void setup(){
 
 void loop(){
   poll_serial();
-  if (arduboy.nextFrame()){
+  if(arduboy.nextFrame()){
     beep.timer(); //handle tone duration
     update_display();
   }
