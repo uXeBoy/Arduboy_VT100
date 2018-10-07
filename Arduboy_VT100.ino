@@ -21,7 +21,7 @@ BeepPin1 beep;
 char text[BUFFERSIZE]; //Text buffer
 // char attrib[BUFFERSIZE/2]; //Text attribute buffer, 4 bits per character
 #define TEXT(x,y) text[((y) * COLUMNS) + (x)]
-int8_t cx, cy;
+int cx, cy;
 unsigned char c;
 char cur_atr;
 
@@ -43,7 +43,7 @@ void scrolldn(){
 
 void handle_escape(){
   c = blocking_read();
-  byte x,val,val2;
+  int x,val,val2;
   if(c == 'D'){ //Move down one line
     cy++;
     if(cy > (ROWS-1)){
@@ -117,7 +117,7 @@ void handle_escape(){
         break;
       case 'K':
         if(val == 1){ //Clear line from cursor left
-          for(x = cx;x;x--){
+          for(x = cx;x >= 0;x--){
             TEXT(x,cy) = 0x00;
           }
         }
