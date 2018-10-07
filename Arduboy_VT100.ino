@@ -101,6 +101,20 @@ void handle_escape(){
       case 'D':cx-=(val==255)?1:val; if(cx < 0){cx = 0;} break; //Move cursor left n lines
       case 'H':cx = 0; cy = 0; break; //Move cursor to upper left corner
       case 'd':cy = val - 1; break; //Move to line n
+      case 'q':
+        if(val == 0 || val == 255){ //Turn off all four leds
+          arduboy.digitalWriteRGB(RGB_OFF, RGB_OFF, RGB_OFF);
+        }
+        if(val == 1){ //Turn on LED #1
+          arduboy.digitalWriteRGB(RED_LED, RGB_ON);
+        }
+        if(val == 2){ //Turn on LED #2
+          arduboy.digitalWriteRGB(GREEN_LED, RGB_ON);
+        }
+        if(val == 3){ //Turn on LED #2
+          arduboy.digitalWriteRGB(BLUE_LED, RGB_ON);
+        }
+        break;
       case 'K':
         if(val == 1){ //Clear line from cursor left
           for(x = cx;x;x--){
