@@ -21,7 +21,7 @@ BeepPin1 beep;
 char text[BUFFERSIZE]; //Text buffer
 // char attrib[BUFFERSIZE/2]; //Text attribute buffer, 4 bits per character
 #define TEXT(x,y) text[((y) * COLUMNS) + (x)]
-int cx, cy;
+int cx,cy;
 unsigned char c;
 char cur_atr;
 
@@ -57,7 +57,7 @@ void handle_escape(){
   }
   else if(c == 'E'){ //Move to next line
     cy++;
-    cx=0;
+    cx = 0;
     if(cy > (ROWS-1)){
       scrollup();
       cy = ROWS-1;
@@ -100,7 +100,7 @@ void handle_escape(){
       case 'C':cx+=(val==255)?1:val; if(cx > (COLUMNS-1)){cx = COLUMNS-1;} break; //Move cursor right n lines
       case 'D':cx-=(val==255)?1:val; if(cx < 0){cx = 0;} break; //Move cursor left n lines
       case 'H':cx = 0; cy = 0; break; //Move cursor to upper left corner
-      case 'd':cy = val - 1; break; //Move to line n
+      case 'd':cy = val-1; break; //Move to line n
       case 'q':
         if(val == 0 || val == 255){ //Turn off all four leds
           arduboy.digitalWriteRGB(RGB_OFF, RGB_OFF, RGB_OFF);
@@ -116,25 +116,25 @@ void handle_escape(){
         }
         break;
       case 'K':
-        if(val == 1){ //Clear line from cursor left
-          for(x = cx;x >= 0;x--){
-            TEXT(x,cy) = 0x00;
-          }
-        }
         if(val == 0 || val == 255){ //Clear line from cursor right
           for(x = cx;x < COLUMNS;x++){
             TEXT(x,cy) = 0x00;
           }
         }
+        if(val == 1){ //Clear line from cursor left
+          for(x = cx;x >= 0;x--){
+            TEXT(x,cy) = 0x00;
+          }
+        }
         if(val == 2){
           for(x = 0;x < COLUMNS;x++){ //Clear entire line
-            TEXT(x, cy) = 0x00;
+            TEXT(x,cy) = 0x00;
           }
         }
         break;
       case 'J':
         if(val == 0 || val == 255){ //Clear screen from cursor down
-          for(uint8_t i=((cy*COLUMNS)+cx); i < BUFFERSIZE; i++){
+          for(uint8_t i = ((cy*COLUMNS)+cx);i < BUFFERSIZE;i++){
             text[i] = 0x00;
           }
         }
@@ -152,11 +152,11 @@ void handle_escape(){
         if(val == 4){
           cur_atr |= UNDERLINE;
         }
-        if(val == 7){
-          cur_atr |= INVERSE;
-        }
         if(val == 5){
           cur_atr |= BLINK;
+        }
+        if(val == 7){
+          cur_atr |= INVERSE;
         }
         break;
     }
@@ -168,18 +168,18 @@ void poll_serial(){ //We need to do this often to avoid dropping bytes in the ti
     c = Serial.read();
     if(c == 27){handle_escape(); continue;} //Escape
     if(c == '\n' || cx > (COLUMNS-1)){ //Line Feed
-      cx = 0; cy ++;
+      cx = 0; cy++;
       if(cy > (ROWS-1)){
         scrollup();
         cy = ROWS-1;
       }
     }
     else if(c == '\r'){cx = 0;} //Carriage Return
-    else if(c == '\t' && cx < (COLUMNS-9)){cx = cx + 8;} //Tab
+    else if(c == '\t' && cx < (COLUMNS-9)){cx = cx+8;} //Tab
     else if(c == 8 && cx > 0){cx--;} //Back Space
-    else if(c == 7){beep.tone(1116, 30);} //Bell (Play a 895Hz tone)
+    else if(c == 7){beep.tone(1116, 30);} //Bell (Play 895Hz tone)
     else if(c > 31){
-      text[(cy * COLUMNS) + cx] = c - 32;
+      text[(cy * COLUMNS) + cx] = c-32;
 //    attrib[(cy * (COLUMNS/2)) + cx/2] &= cx&1?0xF0:0x0F;
 //    attrib[(cy * (COLUMNS/2)) + cx/2] |= cx&1?cur_atr:cur_atr<<4;
       cx++;
@@ -221,7 +221,7 @@ void setup(){
   arduboy.boot();
   arduboy.audio.begin();
   beep.begin();
-  SPCR |= _BV(DORD); // LSB of the data word is transmitted first
+  SPCR |= _BV(DORD); //LSB of the data word is transmitted first
 
   Serial.begin(9600);
   memset(text, 0x00, BUFFERSIZE);
@@ -230,9 +230,8 @@ void setup(){
 
 void loop(){
   poll_serial();
-  if (arduboy.nextFrame())
-  {
-    beep.timer(); // handle tone duration
+  if (arduboy.nextFrame()){
+    beep.timer(); //handle tone duration
     update_display();
   }
 }
