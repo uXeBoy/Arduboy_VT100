@@ -111,7 +111,7 @@ void handle_escape(){
         if(val == 2){ //Turn on LED #2
           arduboy.digitalWriteRGB(GREEN_LED, RGB_ON);
         }
-        if(val == 3){ //Turn on LED #2
+        if(val == 3){ //Turn on LED #3
           arduboy.digitalWriteRGB(BLUE_LED, RGB_ON);
         }
         break;
