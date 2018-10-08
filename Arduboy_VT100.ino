@@ -44,7 +44,8 @@ void scrolldn(){
 
 void handle_escape(){
   c = blocking_read();
-  int x,val,val2;
+  int x,val;
+  int val2 = 0;
   if(c == 'D'){ //Move down one line
     cy++;
     if(cy > (ROWS-1)){
@@ -67,7 +68,7 @@ void handle_escape(){
   else if(c == '(' || c == ')'){ //Character set
     c = blocking_read();
   }
-  else if(c == '[' || c == '?'){
+  else if(c == '['){
     c = blocking_read();
     val = 255;
     if(isdigit(c)){
@@ -102,14 +103,26 @@ void handle_escape(){
           }
         }
         break;
+      case '?':
+        c = blocking_read();
+        if(isdigit(c)){
+          val2 = c - '0';
+          c = blocking_read();
+          if(isdigit(c)){
+            val2 *= 10;
+            val2 += c - '0';
+            c = blocking_read();
+          }
+        }
+        if(c == 'l' && val2 == 25){TIMSK3 = 0; cursorBlink = 0;} //Hide Cursor
+        else if(c == 'h' && val2 == 25){TIMSK3 = _BV(OCIE3A);}   //Show Cursor
+        break;
       case 'A':cy-=(val==255)?1:val; if(cy < 0){cy = 0;} break; //Move cursor up n lines
       case 'B':cy+=(val==255)?1:val; if(cy > (ROWS-1)){cy = ROWS-1;} break; //Move cursor down n lines
       case 'C':cx+=(val==255)?1:val; if(cx > (COLUMNS-1)){cx = COLUMNS-1;} break; //Move cursor right n lines
       case 'D':cx-=(val==255)?1:val; if(cx < 0){cx = 0;} break; //Move cursor left n lines
       case 'H':cx = 0; cy = 0; break; //Move cursor to upper left corner
       case 'd':cy = val-1; break; //Move to line n
-      case 'l':if(val == 25){TIMSK3 = 0; cursorBlink = 0;} break; //Hide Cursor
-      case 'h':if(val == 25){TIMSK3 = _BV(OCIE3A);} break; //Show Cursor
       case 'q':
         if(val == 0 || val == 255){ //Turn off all leds
           arduboy.digitalWriteRGB(RGB_OFF, RGB_OFF, RGB_OFF);
