@@ -67,7 +67,7 @@ void handle_escape(){
   else if(c == '(' || c == ')'){ //Character set
     c = blocking_read();
   }
-  else if(c == '['){
+  else if(c == '[' || c == '?'){
     c = blocking_read();
     val = 255;
     if(isdigit(c)){
@@ -108,8 +108,10 @@ void handle_escape(){
       case 'D':cx-=(val==255)?1:val; if(cx < 0){cx = 0;} break; //Move cursor left n lines
       case 'H':cx = 0; cy = 0; break; //Move cursor to upper left corner
       case 'd':cy = val-1; break; //Move to line n
+      case 'l':if(val == 25){TIMSK3 = 0; cursorBlink = 0;} break; //Hide Cursor
+      case 'h':if(val == 25){TIMSK3 = _BV(OCIE3A);} break; //Show Cursor
       case 'q':
-        if(val == 0 || val == 255){ //Turn off all four leds
+        if(val == 0 || val == 255){ //Turn off all leds
           arduboy.digitalWriteRGB(RGB_OFF, RGB_OFF, RGB_OFF);
         }
         if(val == 1){ //Turn on LED #1
@@ -120,6 +122,15 @@ void handle_escape(){
         }
         if(val == 3){ //Turn on LED #3
           arduboy.digitalWriteRGB(BLUE_LED, RGB_ON);
+        }
+        if(val == 21){ //Turn off LED #1
+          arduboy.digitalWriteRGB(RED_LED, RGB_OFF);
+        }
+        if(val == 22){ //Turn off LED #2
+          arduboy.digitalWriteRGB(GREEN_LED, RGB_OFF);
+        }
+        if(val == 23){ //Turn off LED #3
+          arduboy.digitalWriteRGB(BLUE_LED, RGB_OFF);
         }
         break;
       case 'K':
@@ -159,7 +170,7 @@ void handle_escape(){
         if(val == 4){
           cur_atr |= UNDERLINE;
         }
-        if(val == 5){
+           if(val == 5){
           cur_atr |= BLINK;
         }
         if(val == 7){
@@ -174,17 +185,17 @@ void poll_serial(){ //We need to do this often to avoid dropping bytes in the ti
   while(Serial.available()){ //Check if there is incoming serial and if there is, handle it
     c = Serial.read();
     if(c == 27){handle_escape(); continue;} //Escape
-    if(c == '\n' || cx > (COLUMNS-1)){ //Line Feed
+    if(c == '\n' || cx > (COLUMNS-1)){ //Line Feed, Ctrl-J
       cx = 0; cy++;
       if(cy > (ROWS-1)){
         scrollup();
         cy = ROWS-1;
       }
     }
-    else if(c == '\r'){cx = 0;} //Carriage Return
-    else if(c == '\t' && cx < (COLUMNS-9)){cx = cx+8;} //Tab
-    else if(c == 7){beep.tone(69, 30);} //Bell (Play 895Hz tone)
-    else if(c == 8 && cx > 0){ //Back Space
+    else if(c == '\r'){cx = 0;} //Carriage Return, Ctrl-M
+    else if(c == '\t' && cx < (COLUMNS-9)){cx = cx+8;} //Tab, Ctrl-I
+    else if(c == '\a'){beep.tone(69, 30);} //Bell, Ctrl-G (Play 895Hz tone)
+    else if(c == '\b' && cx > 0){ //Back Space, Ctrl-H
       cx--;
       text[(cy * COLUMNS) + cx] = 0x00;
     }
