@@ -6,3 +6,7 @@ https://www.youtube.com/watch?v=VEhVO7zY0RI
 8x8 font from:
 
 https://github.com/urjaman/st7565-fontgen
+
+an exhaustive list of escape codes can be found at:
+
+http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
