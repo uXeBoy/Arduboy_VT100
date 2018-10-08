@@ -170,7 +170,7 @@ void handle_escape(){
         if(val == 4){
           cur_atr |= UNDERLINE;
         }
-           if(val == 5){
+        if(val == 5){
           cur_atr |= BLINK;
         }
         if(val == 7){
